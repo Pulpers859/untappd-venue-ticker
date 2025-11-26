@@ -5,182 +5,187 @@
   <title>Untappd Venue Live Check-ins</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Cyberpunk fonts -->
+  <!-- Untappd look alike fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
-    :root {
-      --bg1: #050218;
-      --bg2: #150050;
-      --bg3: #32004f;
-      --accent-cyan: #2af5ff;
-      --accent-pink: #ff2f92;
-      --accent-yellow: #ffe66d;
-      --text-main: #f7f7ff;
-      --text-soft: #b9b8ff;
-    }
+  :root {
+    --bg-main: #14151a;           /* dark slate */
+    --bg-strip: #181920;          /* slightly lighter strip */
+    --accent-yellow: #f4c430;     /* warm Untappd-like yellow */
+    --accent-yellow-soft: #ffdd6a;
+    --text-main: #f9fafb;
+    --text-soft: #c3c6d1;
+    --text-muted: #8e93a3;
+  }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      sans-serif;
+  }
 
-    body {
-      font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, var(--bg3) 0%, var(--bg2) 35%, var(--bg1) 90%);
-      color: var(--text-main);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2vh 2vw;
-    }
+  body {
+    background: var(--bg-main);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+  }
 
+  /* Outer container – works as a bottom bar or full-width strip */
+  .shell {
+    width: 100%;
+    max-width: 1920px;
+    height: 100%;
+    max-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ticker-shell {
+    width: 100%;
+    background: var(--bg-strip);
+    border-radius: 6px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid #20222c;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  }
+
+  /* LEFT LABEL (like Untappd’s subtle “CHECK-INS” tag) */
+  .ticker-label {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(244, 196, 48, 0.9);
+    background: rgba(244, 196, 48, 0.12);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-yellow-soft);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .ticker-label-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-yellow);
+  }
+
+  /* MAIN TICKER WINDOW */
+  .ticker-window {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    height: 34px;
+  }
+
+  .ticker-track {
+    position: absolute;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    will-change: transform;
+    animation: scroll 30s linear infinite;
+  }
+
+  .ticker-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.8rem;
+    font-size: 0.98rem;
+    color: var(--text-main);
+  }
+
+  .ticker-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .ticker-user {
+    font-weight: 600;
+    color: var(--accent-yellow);
+  }
+
+  .ticker-beer {
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .ticker-brewery {
+    font-size: 0.9rem;
+    color: var(--text-soft);
+  }
+
+  .ticker-separator {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .ticker-time {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .ticker-empty {
+    font-size: 0.9rem;
+    color: var(--text-soft);
+  }
+
+  /* RIGHT-SIDE STATUS TEXT */
+  .status-pill {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  @keyframes scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (max-width: 900px) {
     .shell {
-      width: 100%;
-      max-width: 1920px;
-      height: 100%;
-      max-height: 180px; /* Works great as a bottom strip in Yodeck or full screen */
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      max-height: 110px;
     }
 
     .ticker-shell {
-      width: 100%;
-      border-radius: 999px;
-      padding: 8px 18px;
-      background: radial-gradient(circle at top, rgba(42, 245, 255, 0.18), rgba(5, 2, 24, 0.98));
-      box-shadow:
-        0 0 20px rgba(42, 245, 255, 0.6),
-        0 0 45px rgba(255, 47, 146, 0.45);
-      display: flex;
-      align-items: center;
-      gap: 18px;
-      border: 1px solid rgba(112, 98, 255, 0.5);
-      overflow: hidden;
+      padding-inline: 12px;
     }
 
     .ticker-label {
-      flex-shrink: 0;
-      padding: 8px 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 230, 109, 0.8);
-      background: radial-gradient(circle at top, rgba(255, 230, 109, 0.35), rgba(16, 6, 36, 0.96));
-      font-family: "Orbitron", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 0.78rem;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--accent-yellow);
-      text-shadow:
-        0 0 6px rgba(255, 230, 109, 0.8),
-        0 0 14px rgba(255, 47, 146, 0.7);
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .ticker-label-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--accent-yellow);
-      box-shadow: 0 0 10px rgba(255, 230, 109, 0.9);
-    }
-
-    .ticker-window {
-      flex: 1;
-      overflow: hidden;
-      position: relative;
-      height: 40px;
-    }
-
-    .ticker-track {
-      position: absolute;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      will-change: transform;
-      animation: scroll 30s linear infinite;
+      display: none; /* hide left label on small screens if needed */
     }
 
     .ticker-content {
-      display: inline-flex;
-      align-items: center;
-      gap: 1.75rem;
-      font-size: 1rem;
-      color: var(--text-main);
-    }
-
-    .ticker-item {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 0.35rem;
-    }
-
-    .ticker-user {
-      font-weight: 600;
-      color: var(--accent-cyan);
-    }
-
-    .ticker-beer {
-      font-weight: 600;
-      color: var(--accent-pink);
-    }
-
-    .ticker-brewery {
       font-size: 0.9rem;
-      color: var(--text-soft);
+      gap: 1.2rem;
     }
-
-    .ticker-separator {
-      font-size: 0.9rem;
-      color: rgba(185, 184, 255, 0.7);
-    }
-
-    .ticker-time {
-      font-size: 0.85rem;
-      color: var(--text-soft);
-      opacity: 0.9;
-    }
-
-    .ticker-empty {
-      font-size: 0.9rem;
-      color: var(--text-soft);
-      opacity: 0.9;
-    }
-
-    .status-pill {
-      flex-shrink: 0;
-      font-size: 0.75rem;
-      color: var(--text-soft);
-      opacity: 0.9;
-    }
-
-    @keyframes scroll {
-      from {
-        transform: translateX(0);
-      }
-      to {
-        transform: translateX(-50%);
-      }
-    }
-
-    @media (max-width: 900px) {
-      .ticker-shell {
-        border-radius: 18px;
-      }
-      .ticker-label {
-        display: none; /* Hide label on really small screens if needed */
-      }
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
   <div class="shell">
@@ -213,167 +218,197 @@
     // How often to refresh (ms)
     const REFRESH_MS = 30000;
 
-    // ========= ELEMENTS =========
-    const tickerTrack = document.getElementById("tickerTrack");
-    const tickerContent = document.getElementById("tickerContent");
-    const statusText = document.getElementById("statusText");
+     // ========= ELEMENTS =========
+  const tickerTrack = document.getElementById("tickerTrack");
+  const tickerContent = document.getElementById("tickerContent");
+  const statusText = document.getElementById("statusText");
 
-    // ========= HELPERS =========
+  // ========= HELPERS =========
 
-    function timeAgo(dateString) {
-      const then = new Date(dateString);
-      if (isNaN(then.getTime())) return "";
-      const now = new Date();
-      const diffMs = now - then;
-      const minutes = Math.floor(diffMs / 60000);
-      const hours = Math.floor(minutes / 60);
+  function timeAgo(dateString) {
+    const then = new Date(dateString);
+    if (isNaN(then)) return "";
+    const now = new Date();
+    const diffMs = now - then;
+    const minutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(minutes / 60);
 
-      if (minutes < 1) return "just now";
-      if (minutes < 60) return minutes + " min ago";
-      if (hours < 24) return hours + " hr" + (hours !== 1 ? "s" : "") + " ago";
-      const days = Math.floor(hours / 24);
-      return days + " day" + (days !== 1 ? "s" : "") + " ago";
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return minutes + " min ago";
+    if (hours < 24) return hours + " hr" + (hours !== 1 ? "s" : "") + " ago";
+    const days = Math.floor(hours / 24);
+    return days + " day" + (days !== 1 ? "s" : "") + " ago";
+  }
+
+  // Extract rating from Untappd RSS description (HTML)
+  // Example: <p>Rating: 4.25</p>
+  function parseRating(desc) {
+    if (!desc) return "";
+    const match = desc.match(/Rating:\s*([0-9.]+)/i);
+    return match ? match[1] : "";
+  }
+
+  // Untappd RSS title is usually:
+  // "User is drinking a Beer Name by Brewery Name at Venue"
+  function parseUntappdTitle(title) {
+    let user = "";
+    let beer = "";
+    let brewery = "";
+
+    let userSplit = title.split(" is drinking ");
+    if (userSplit.length === 1) {
+      userSplit = title.split(" drank ");
     }
+    if (userSplit.length > 1) {
+      user = userSplit[0].trim();
+      const rest = userSplit[1];
 
-    // Untappd RSS title is usually like:
-    // "User is drinking a Beer Name by Brewery Name at Venue"
-    function parseUntappdTitle(title) {
-      if (!title) return { user: "", beer: title, brewery: "" };
-
-      let user = "";
-      let beer = "";
-      let brewery = "";
-
-      // Split "user is drinking" or "user drank"
-      let userSplit = title.split(" is drinking ");
-      if (userSplit.length === 1) {
-        userSplit = title.split(" drank ");
-      }
-      if (userSplit.length > 1) {
-        user = userSplit[0].trim();
-        const rest = userSplit[1];
-
-        // Split " by " for brewery
-        const bySplit = rest.split(" by ");
-        if (bySplit.length > 1) {
-          beer = bySplit[0].replace(/^a\s+/i, "").trim();
-          // Remove " at Venue" from brewery if present
-          const atSplit = bySplit[1].split(" at ");
-          brewery = atSplit[0].trim();
-        } else {
-          beer = rest.trim();
-        }
+      const bySplit = rest.split(" by ");
+      if (bySplit.length > 1) {
+        beer = bySplit[0].replace(/^a\s+/i, "").trim();
+        const atSplit = bySplit[1].split(" at ");
+        brewery = atSplit[0].trim();
       } else {
-        // fallback: everything is beer
-        beer = title.trim();
+        beer = rest.trim();
       }
-
-      return { user, beer, brewery };
+    } else {
+      beer = title.trim();
     }
 
-    function buildTicker(items) {
-      tickerContent.innerHTML = "";
+    return { user, beer, brewery };
+  }
 
-      if (!items || !items.length) {
-        const span = document.createElement("span");
-        span.className = "ticker-empty";
-        span.textContent = "No recent check-ins yet. Open Untappd and check in a beer at this venue.";
-        tickerContent.appendChild(span);
-        return;
-      }
+  function buildTicker(items) {
+    tickerContent.innerHTML = "";
 
-      const maxItems = Math.min(items.length, 10);
-      for (let i = 0; i < maxItems; i++) {
-        const item = items[i];
-        const { user, beer, brewery } = parseUntappdTitle(item.title);
-        const time = timeAgo(item.pubDate);
+    if (!items || !items.length) {
+      const span = document.createElement("span");
+      span.className = "ticker-empty";
+      span.textContent =
+        "No recent check-ins. Be the first to log a beer at this venue!";
+      tickerContent.appendChild(span);
+      return;
+    }
 
-        const itemEl = document.createElement("span");
-        itemEl.className = "ticker-item";
+    const maxItems = Math.min(items.length, 10);
 
-        const userEl = document.createElement("span");
-        userEl.className = "ticker-user";
-        userEl.textContent = user || "Someone";
+    for (let i = 0; i < maxItems; i++) {
+      const item = items[i];
+      const { user, beer, brewery } = parseUntappdTitle(item.title);
+      const rating = parseRating(item.description);
+      const time = timeAgo(item.pubDate);
 
-        const arrowEl = document.createElement("span");
-        arrowEl.textContent = "→";
+      const itemEl = document.createElement("span");
+      itemEl.className = "ticker-item";
 
-        const beerEl = document.createElement("span");
-        beerEl.className = "ticker-beer";
-        beerEl.textContent = beer || "A beer";
+      // Build Untappd-style line:
+      // User · Beer Name (Brewery) · ★Rating · 3 min ago
 
-        const breweryEl = document.createElement("span");
-        breweryEl.className = "ticker-brewery";
-        breweryEl.textContent = brewery ? "(" + brewery + ")" : "";
+      const userEl = document.createElement("span");
+      userEl.className = "ticker-user";
+      userEl.textContent = user || "Someone";
 
-        const timeEl = document.createElement("span");
-        timeEl.className = "ticker-time";
-        timeEl.textContent = time ? "· " + time : "";
+      const beerEl = document.createElement("span");
+      beerEl.className = "ticker-beer";
+      beerEl.textContent = beer || "A beer";
 
-        itemEl.appendChild(userEl);
-        itemEl.appendChild(arrowEl);
+      const breweryEl = document.createElement("span");
+      breweryEl.className = "ticker-brewery";
+      breweryEl.textContent = brewery ? `(${brewery})` : "";
+
+      const ratingEl = document.createElement("span");
+      ratingEl.className = "ticker-beer";
+      ratingEl.textContent =
+        rating !== "" ? `★${rating}` : "";
+
+      const timeEl = document.createElement("span");
+      timeEl.className = "ticker-time";
+      timeEl.textContent = time ? `${time}` : "";
+
+      // Append in Untappd-like style
+      itemEl.appendChild(userEl);
+
+      if (beer) {
+        addSeparator(itemEl);
         itemEl.appendChild(beerEl);
-        if (brewery) {
-          itemEl.appendChild(breweryEl);
-        }
-        if (time) {
-          itemEl.appendChild(timeEl);
-        }
-
-        tickerContent.appendChild(itemEl);
-
-        if (i < maxItems - 1) {
-          const sep = document.createElement("span");
-          sep.className = "ticker-separator";
-          sep.textContent = "◆";
-          tickerContent.appendChild(sep);
-        }
       }
 
-      // Duplicate content once for smooth loop
-      const clone = tickerContent.cloneNode(true);
-      tickerTrack.innerHTML = "";
-      tickerTrack.appendChild(tickerContent);
-      tickerTrack.appendChild(clone);
+      if (brewery) {
+        itemEl.appendChild(breweryEl);
+      }
+
+      if (rating) {
+        addSeparator(itemEl);
+        itemEl.appendChild(ratingEl);
+      }
+
+      if (time) {
+        addSeparator(itemEl);
+        itemEl.appendChild(timeEl);
+      }
+
+      tickerContent.appendChild(itemEl);
+
+      if (i < maxItems - 1) {
+        const sep = document.createElement("span");
+        sep.className = "ticker-separator";
+        sep.textContent = "·";
+        tickerContent.appendChild(sep);
+      }
     }
 
-    async function fetchCheckins() {
-      if (!VENUE_RSS_URL || VENUE_RSS_URL.includes("YOUR-VENUE-SLUG-HERE")) {
-        statusText.textContent = "Configure VENUE_RSS_URL in the code.";
+    // Duplicate for infinite scroll
+    const clone = tickerContent.cloneNode(true);
+    tickerTrack.innerHTML = "";
+    tickerTrack.appendChild(tickerContent);
+    tickerTrack.appendChild(clone);
+  }
+
+  function addSeparator(parent) {
+    const dot = document.createElement("span");
+    dot.className = "ticker-separator";
+    dot.textContent = "·";
+    parent.appendChild(dot);
+  }
+
+  async function fetchCheckins() {
+    if (!VENUE_RSS_URL || VENUE_RSS_URL.includes("YOUR-VENUE-SLUG-HERE")) {
+      statusText.textContent = "Configure VENUE_RSS_URL in the code.";
+      return;
+    }
+
+    try {
+      statusText.textContent = "Updating…";
+
+      const rssUrl = encodeURIComponent(VENUE_RSS_URL);
+      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`;
+
+      const res = await fetch(apiUrl);
+      if (!res.ok) {
+        statusText.textContent = "Feed error";
         return;
       }
 
-      try {
-        statusText.textContent = "Updating…";
+      const data = await res.json();
+      const items = data.items || [];
 
-        const rssUrl = encodeURIComponent(VENUE_RSS_URL);
-        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`;
+      buildTicker(items);
 
-        const res = await fetch(apiUrl);
-        if (!res.ok) {
-          console.error("rss2json error:", await res.text());
-          statusText.textContent = "Error loading feed.";
-          return;
-        }
-
-        const data = await res.json();
-        const items = data.items || [];
-        buildTicker(items);
-
-        const now = new Date();
-        statusText.textContent = "Last updated " + now.toLocaleTimeString();
-      } catch (err) {
-        console.error("Fetch error:", err);
-        statusText.textContent = "Network error.";
-      }
+      statusText.textContent =
+        "Last updated " + new Date().toLocaleTimeString();
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = "Network error";
     }
+  }
 
-    function startAutoRefresh() {
-      fetchCheckins();
-      setInterval(fetchCheckins, REFRESH_MS);
-    }
+  function startAutoRefresh() {
+    fetchCheckins();
+    setInterval(fetchCheckins, REFRESH_MS);
+  }
 
-    document.addEventListener("DOMContentLoaded", startAutoRefresh);
-  </script>
+  document.addEventListener("DOMContentLoaded", startAutoRefresh);
+</script>
 </body>
 </html>
+
