@@ -254,28 +254,37 @@
   // ========= PARSERS =========
 
   // Rating parser:
-  // Tries multiple patterns and falls back to "first 0.0–5.0-ish number".
+  // Looks for "(4.5/5 Stars)", "(4.5/5)", "4.5/5", or "Rating: 4.5"
   function parseRating(item) {
-    const raw =
-      (item.description || "") + " " + (item.content || "") + " " + (item.content_html || "");
+    const raw = (item.description || "") + " " + (item.content || "");
     const text = raw.replace(/<[^>]+>/g, " "); // strip HTML tags
 
-    let match =
-      text.match(/Rating:\s*([0-9.]+)/i) ||
-      text.match(/Rated\s*([0-9.]+)/i) ||
-      text.match(/([0-5](?:\.[0-9])?)\s*\/\s*5/i); // like "4.25 / 5"
+    // Primary: "(4.5/5 Stars)" or "(4.5/5)"
+    let match = text.match(/\(([0-9.]+)\s*\/\s*5/i);
+    if (match) {
+      return match[1]; // "4.5"
+    }
 
+    // Backup: "4.5/5 Stars" without parentheses
+    match = text.match(/([0-9.]+)\s*\/\s*5/i);
     if (match) {
       return match[1];
     }
+
+    // Backup: "Rating: 4.5"
+    match = text.match(/Rating:\s*([0-9.]+)/i);
+    if (match) {
+      return match[1];
+    }
+
     return "";
   }
 
   // Title parser:
-  // Expected shapes:
+  // Typical shapes:
   // "User is drinking a Beer Name by Brewery Name at Venue Name"
   // "User drank Beer Name by Brewery Name at Venue Name"
-  // or sometimes "User is drinking Beer Name (Brewery Name) at Venue Name"
+  // Sometimes "Beer Name (Brewery Name)" inside
   function parseUntappdTitle(title) {
     let user = "";
     let beer = "";
@@ -283,14 +292,14 @@
 
     if (!title) return { user, beer, brewery };
 
-    // First, remove trailing " at Venue..." so venue name never appears
+    // Strip trailing " at Venue..." so venue name never shows
     let base = title;
     const atIndex = base.toLowerCase().lastIndexOf(" at ");
     if (atIndex !== -1) {
       base = base.slice(0, atIndex);
     }
 
-    // Separate user from rest
+    // Separate user from the rest
     let parts = base.split(" is drinking ");
     if (parts.length === 1) {
       parts = base.split(" drank ");
@@ -304,17 +313,17 @@
       rest = base.trim();
     }
 
-    // First attempt: split "beer by brewery"
+    // First attempt: "beer by brewery"
     let beerCandidate = rest;
     let breweryCandidate = "";
 
     const bySplit = rest.split(" by ");
     if (bySplit.length > 1) {
       beerCandidate = bySplit[0].replace(/^a\s+/i, "").trim();
-      breweryCandidate = bySplit.slice(1).join(" by ").trim(); // just in case there's an extra "by"
+      breweryCandidate = bySplit.slice(1).join(" by ").trim();
     }
 
-    // If no "by" pattern, look for trailing "(Brewery)" at end of beer name
+    // If no "by", look for "Beer Name (Brewery Name)"
     if (!breweryCandidate) {
       const parenMatch = beerCandidate.match(/\(([^)]+)\)\s*$/);
       if (parenMatch) {
@@ -373,8 +382,8 @@
       const itemEl = document.createElement("span");
       itemEl.className = "ticker-item";
 
-      // Format:
-      // User · Beer Name by Brewery Name · - 4.25 · 3 min ago
+      // Final format:
+      // User · Beer Name by Brewery Name · Rated 4.5/5 · 3 min ago
 
       const userEl = document.createElement("span");
       userEl.className = "ticker-user";
@@ -382,7 +391,6 @@
 
       const beerEl = document.createElement("span");
       beerEl.className = "ticker-beer";
-
       if (beer && brewery) {
         beerEl.textContent = `${beer} by ${brewery}`;
       } else if (beer) {
@@ -393,13 +401,13 @@
 
       const ratingEl = document.createElement("span");
       ratingEl.className = "ticker-beer";
-      ratingEl.textContent = rating ? `- ${rating}` : "";
+      ratingEl.textContent = rating ? `Rated ${rating}/5` : "";
 
       const timeEl = document.createElement("span");
       timeEl.className = "ticker-time";
       timeEl.textContent = time || "";
 
-      // Build line:
+      // Build line
       // User
       itemEl.appendChild(userEl);
 
@@ -409,7 +417,7 @@
         itemEl.appendChild(beerEl);
       }
 
-      // · - 4.25
+      // · Rated X/5
       if (rating) {
         addSeparator(itemEl);
         itemEl.appendChild(ratingEl);
@@ -423,6 +431,7 @@
 
       tickerContent.appendChild(itemEl);
 
+      // Separator between items in the scrolling line
       if (i < maxItems - 1) {
         const sep = document.createElement("span");
         sep.className = "ticker-separator";
@@ -431,7 +440,7 @@
       }
     }
 
-    // Duplicate content for seamless scrolling
+    // Duplicate content for seamless infinite scroll
     const clone = tickerContent.cloneNode(true);
     tickerTrack.innerHTML = "";
     tickerTrack.appendChild(tickerContent);
@@ -479,8 +488,10 @@
   document.addEventListener("DOMContentLoaded", startAutoRefresh);
 </script>
 
+
 </body>
 </html>
+
 
 
 
