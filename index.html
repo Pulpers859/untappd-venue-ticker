@@ -208,16 +208,10 @@
       </div>
     </div>
   </div>
-
-  <script>
+<script>
   // ========= CONFIG =========
-  // Your Untappd VENUE RSS URL:
   const VENUE_RSS_URL = "https://untappd.com/rss/venue/9899874";
-
-  // Refresh how often (ms)
   const REFRESH_MS = 60000; // 60 seconds
-
-  // Only show check-ins from the last N hours
   const MAX_AGE_HOURS = 7000; // ~292 days
 
   // ========= ELEMENTS =========
@@ -225,7 +219,7 @@
   const tickerContent = document.getElementById("tickerContent");
   const statusText = document.getElementById("statusText");
 
-  // ========= TIME HELPERS =========
+  // ========= HELPERS =========
 
   function timeAgo(dateString) {
     const then = new Date(dateString);
@@ -236,10 +230,10 @@
     const hours = Math.floor(minutes / 60);
 
     if (minutes < 1) return "just now";
-    if (minutes < 60) return minutes + " min ago";
-    if (hours < 24) return hours + " hr" + (hours !== 1 ? "s" : "") + " ago";
+    if (minutes < 60) return `${minutes} min ago`;
+    if (hours < 24) return `${hours} hr${hours !== 1 ? "s" : ""} ago`;
     const days = Math.floor(hours / 24);
-    return days + " day" + (days !== 1 ? "s" : "") + " ago";
+    return `${days} day${days !== 1 ? "s" : ""} ago`;
   }
 
   function isRecentEnough(dateString) {
@@ -251,252 +245,34 @@
     return hours <= MAX_AGE_HOURS;
   }
 
-  // ========= PARSERS =========
+  // Remove "a " / "an " from beer names
+  function cleanBeerName(name) {
+    if (!name) return "";
+    return name.replace(/^(a |an )/i, "").trim();
+  }
 
-  // Rating parser:
-  // Looks for "(4.5/5 Stars)", "(4.5/5)", "4.5/5", or "Rating: 4.5"
+  // Rating parser: handles "(4.5/5 Stars)", "(4.5/5)", "4.5/5", "Rating: 4.5"
   function parseRating(item) {
     const raw = (item.description || "") + " " + (item.content || "");
-    const text = raw.replace(/<[^>]+>/g, " "); // strip HTML tags
+    const text = raw.replace(/<[^>]+>/g, " ");
 
-    // Primary: "(4.5/5 Stars)" or "(4.5/5)"
     let match = text.match(/\(([0-9.]+)\s*\/\s*5/i);
-    if (match) {
-      return match[1]; // "4.5"
-    }
+    if (match) return match[1];
 
-    // Backup: "4.5/5 Stars" without parentheses
     match = text.match(/([0-9.]+)\s*\/\s*5/i);
-    if (match) {
-      return match[1];
-    }
+    if (match) return match[1];
 
-    // Backup: "Rating: 4.5"
     match = text.match(/Rating:\s*([0-9.]+)/i);
-    if (match) {
-      return match[1];
-    }
+    if (match) return match[1];
 
     return "";
   }
 
-  // Title parser:
-  // Typical shapes:
-  // "User is drinking a Beer Name by Brewery Name at Venue Name"
-  // "User drank Beer Name by Brewery Name at Venue Name"
-  // Sometimes "Beer Name (Brewery Name)" inside
-  function parseUntappdTitle(title) {
-    let user = "";
-    let beer = "";
-    let brewery = "";
-
-    if (!title) return { user, beer, brewery };
-
-    // Strip trailing " at Venue..." so venue name never shows
-    let base = title;
-    const atIndex = base.toLowerCase().lastIndexOf(" at ");
-    if (atIndex !== -1) {
-      base = base.slice(0, atIndex);
-    }
-
-    // Separate user from the rest
-    let parts = base.split(" is drinking ");
-    if (parts.length === 1) {
-      parts = base.split(" drank ");
-    }
-
-    let rest = "";
-    if (parts.length > 1) {
-      user = parts[0].trim();
-      rest = parts[1].trim();
-    } else {
-      rest = base.trim();
-    }
-
-    // First attempt: "beer by brewery"
-    let beerCandidate = rest;
-    let breweryCandidate = "";
-
-    const bySplit = rest.split(" by ");
-    if (bySplit.length > 1) {
-      beerCandidate = bySplit[0].replace(/^a\s+/i, "").trim();
-      breweryCandidate = bySplit.slice(1).join(" by ").trim();
-    }
-
-    // If no "by", look for "Beer Name (Brewery Name)"
-    if (!breweryCandidate) {
-      const parenMatch = beerCandidate.match(/\(([^)]+)\)\s*$/);
-      if (parenMatch) {
-        breweryCandidate = parenMatch[1].trim();
-        beerCandidate = beerCandidate.replace(/\s*\([^)]+\)\s*$/, "").trim();
-      }
-    }
-
-    beer = beerCandidate;
-    brewery = breweryCandidate;
-
-    return { user, beer, brewery };
-  }
-
-  function addSeparator(parent) {
-    const dot = document.createElement("span");
-    dot.className = "ticker-separator";
-    dot.textContent = "·";
-    parent.appendChild(dot);
-  }
-
-  // ========= BUILD TICKER =========
-
-  function buildTicker(items) {
-    tickerContent.innerHTML = "";
-
-    if (!items || !items.length) {
-      const span = document.createElement("span");
-      span.className = "ticker-empty";
-      span.textContent =
-        "No recent check-ins. Be the first to log a beer at this venue!";
-      tickerContent.appendChild(span);
-      return;
-    }
-
-    // Only keep items within MAX_AGE_HOURS
-    const recentItems = items.filter((item) => isRecentEnough(item.pubDate));
-
-    if (!recentItems.length) {
-      const span = document.createElement("span");
-      span.className = "ticker-empty";
-      span.textContent =
-        "No check-ins in the selected time window. Be the first to log a beer!";
-      tickerContent.appendChild(span);
-      return;
-    }
-
-    const maxItems = Math.min(recentItems.length, 10);
-
-    for (let i = 0; i < maxItems; i++) {
-      const item = recentItems[i];
-      const { user, beer, brewery } = parseUntappdTitle(item.title);
-      const rating = parseRating(item);
-      const time = timeAgo(item.pubDate);
-
-      const itemEl = document.createElement("span");
-      itemEl.className = "ticker-item";
-
-      // Final format:
-      // User · Beer Name by Brewery Name · Rated 4.5/5 · 3 min ago
-
-      const userEl = document.createElement("span");
-      userEl.className = "ticker-user";
-      userEl.textContent = user || "Someone";
-
-      const beerEl = document.createElement("span");
-      beerEl.className = "ticker-beer";
-      if (beer && brewery) {
-        beerEl.textContent = `${beer} by ${brewery}`;
-      } else if (beer) {
-        beerEl.textContent = beer;
-      } else {
-        beerEl.textContent = "A beer";
-      }
-
-      const ratingEl = document.createElement("span");
-      ratingEl.className = "ticker-beer";
-      ratingEl.textContent = rating ? `Rated ${rating}/5` : "";
-
-      const timeEl = document.createElement("span");
-      timeEl.className = "ticker-time";
-      timeEl.textContent = time || "";
-
-      // Build line
-      // User
-      itemEl.appendChild(userEl);
-
-      // · Beer by Brewery
-      if (beer) {
-        addSeparator(itemEl);
-        itemEl.appendChild(beerEl);
-      }
-
-      // · Rated X/5
-      if (rating) {
-        addSeparator(itemEl);
-        itemEl.appendChild(ratingEl);
-      }
-
-      // · time ago
-      if (time) {
-        addSeparator(itemEl);
-        itemEl.appendChild(timeEl);
-      }
-
-      tickerContent.appendChild(itemEl);
-
-      // Separator between items in the scrolling line
-      if (i < maxItems - 1) {
-        const sep = document.createElement("span");
-        sep.className = "ticker-separator";
-        sep.textContent = "·";
-        tickerContent.appendChild(sep);
-      }
-    }
-
-    // Duplicate content for seamless infinite scroll
-    const clone = tickerContent.cloneNode(true);
-    tickerTrack.innerHTML = "";
-    tickerTrack.appendChild(tickerContent);
-    tickerTrack.appendChild(clone);
-  }
-
-  // ========= FETCH & REFRESH =========
-
-  async function fetchCheckins() {
-    if (!VENUE_RSS_URL) {
-      statusText.textContent = "Configure VENUE_RSS_URL in the code.";
-      return;
-    }
-
-    try {
-      statusText.textContent = "Updating…";
-
-      const rssUrl = encodeURIComponent(VENUE_RSS_URL);
-      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`;
-
-      const res = await fetch(apiUrl);
-      if (!res.ok) {
-        statusText.textContent = "Feed error";
-        return;
-      }
-
-      const data = await res.json();
-      const items = data.items || [];
-
-      buildTicker(items);
-
-      statusText.textContent =
-        "Last updated " + new Date().toLocaleTimeString();
-    } catch (err) {
-      console.error(err);
-      statusText.textContent = "Network error";
-    }
-  }
-
-  function startAutoRefresh() {
-    fetchCheckins();
-    setInterval(fetchCheckins, REFRESH_MS);
-  }
-
-  document.addEventListener("DOMContentLoaded", startAutoRefresh);
-</script>
-
+  // Parse Untappd title into u
+ 
 
 </body>
 </html>
-
-
-
-
-
-
 
 
 
