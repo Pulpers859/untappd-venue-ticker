@@ -268,11 +268,199 @@
     return "";
   }
 
-  // Parse Untappd title into u
- 
+  // Parse Untappd title into user, beer, brewery
+  function parseUntappdTitle(title) {
+    let user = "";
+    let beer = "";
+    let brewery = "";
+
+    if (!title) return { user, beer, brewery };
+
+    // Remove " at Venue"
+    let base = title;
+    const atIndex = base.toLowerCase().lastIndexOf(" at ");
+    if (atIndex !== -1) base = base.slice(0, atIndex);
+
+    // Split by "is drinking" or "drank"
+    let parts = base.split(" is drinking ");
+    if (parts.length === 1) parts = base.split(" drank ");
+
+    let rest = "";
+    if (parts.length > 1) {
+      user = parts[0].trim();
+      rest = parts[1].trim();
+    } else {
+      rest = base.trim();
+    }
+
+    // "Beer by Brewery"
+    let beerCandidate = rest;
+    let breweryCandidate = "";
+
+    const bySplit = rest.split(" by ");
+    if (bySplit.length > 1) {
+      beerCandidate = bySplit[0].trim();
+      breweryCandidate = bySplit.slice(1).join(" by ").trim();
+    }
+
+    // "Beer (Brewery)"
+    if (!breweryCandidate) {
+      const parenMatch = beerCandidate.match(/\(([^)]+)\)\s*$/);
+      if (parenMatch) {
+        breweryCandidate = parenMatch[1].trim();
+        beerCandidate = beerCandidate.replace(/\s*\([^)]+\)\s*$/, "").trim();
+      }
+    }
+
+    beer = beerCandidate;
+    brewery = breweryCandidate;
+
+    return { user, beer, brewery };
+  }
+
+  function addSeparator(parent) {
+    const dot = document.createElement("span");
+    dot.className = "ticker-separator";
+    dot.textContent = "·";
+    parent.appendChild(dot);
+  }
+
+  // ========= BUILD TICKER =========
+
+  function buildTicker(items) {
+    tickerContent.innerHTML = "";
+
+    if (!items || !items.length) {
+      const span = document.createElement("span");
+      span.className = "ticker-empty";
+      span.textContent = "No recent check-ins.";
+      tickerContent.appendChild(span);
+      return;
+    }
+
+    const recentItems = items.filter((item) => isRecentEnough(item.pubDate));
+
+    if (!recentItems.length) {
+      const span = document.createElement("span");
+      span.className = "ticker-empty";
+      span.textContent = "No check-ins in the selected time window.";
+      tickerContent.appendChild(span);
+      return;
+    }
+
+    const maxItems = Math.min(recentItems.length, 10);
+
+    for (let i = 0; i < maxItems; i++) {
+      const item = recentItems[i];
+      const { user, beer, brewery } = parseUntappdTitle(item.title);
+
+      const cleanBeer = cleanBeerName(beer);
+      const rating = parseRating(item);
+      const time = timeAgo(item.pubDate);
+
+      const itemEl = document.createElement("span");
+      itemEl.className = "ticker-item";
+
+      // Build entry: User · Beer by Brewery · Rated 4.5/5 · 3 min ago
+      const userEl = document.createElement("span");
+      userEl.className = "ticker-user";
+      userEl.textContent = user || "Someone";
+
+      const beerEl = document.createElement("span");
+      beerEl.className = "ticker-beer";
+      if (cleanBeer && brewery) {
+        beerEl.textContent = `${cleanBeer} by ${brewery}`;
+      } else if (cleanBeer) {
+        beerEl.textContent = cleanBeer;
+      } else {
+        beerEl.textContent = "A beer";
+      }
+
+      const ratingEl = document.createElement("span");
+      ratingEl.className = "ticker-beer";
+      ratingEl.textContent = rating ? `Rated ${rating}/5` : "";
+
+      const timeEl = document.createElement("span");
+      timeEl.className = "ticker-time";
+      timeEl.textContent = time || "";
+
+      // User
+      itemEl.appendChild(userEl);
+
+      // · Beer by Brewery
+      if (cleanBeer) {
+        addSeparator(itemEl);
+        itemEl.appendChild(beerEl);
+      }
+
+      // · Rated X/5
+      if (rating) {
+        addSeparator(itemEl);
+        itemEl.appendChild(ratingEl);
+      }
+
+      // · Time ago
+      if (time) {
+        addSeparator(itemEl);
+        itemEl.appendChild(timeEl);
+      }
+
+      tickerContent.appendChild(itemEl);
+
+      if (i < maxItems - 1) {
+        const sep = document.createElement("span");
+        sep.className = "ticker-separator";
+        sep.textContent = "·";
+        tickerContent.appendChild(sep);
+      }
+    }
+
+    // Duplicate for infinite scrolling
+    const clone = tickerContent.cloneNode(true);
+    tickerTrack.innerHTML = "";
+    tickerTrack.appendChild(tickerContent);
+    tickerTrack.appendChild(clone);
+  }
+
+  // ========= FETCH & REFRESH =========
+
+  async function fetchCheckins() {
+    try {
+      statusText.textContent = "Updating…";
+
+      const rssUrl = encodeURIComponent(VENUE_RSS_URL);
+      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`;
+
+      const res = await fetch(apiUrl);
+      if (!res.ok) {
+        statusText.textContent = "Feed error";
+        return;
+      }
+
+      const data = await res.json();
+      const items = data.items || [];
+
+      buildTicker(items);
+
+      statusText.textContent = "Last updated " + new Date().toLocaleTimeString();
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = "Network error";
+    }
+  }
+
+  function startAutoRefresh() {
+    fetchCheckins();
+    setInterval(fetchCheckins, REFRESH_MS);
+  }
+
+  document.addEventListener("DOMContentLoaded", startAutoRefresh);
+</script>
+
 
 </body>
 </html>
+
 
 
 
