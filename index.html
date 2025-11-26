@@ -211,14 +211,14 @@
 
   <script>
   // ========= CONFIG =========
-  // Your Untappd VENUE RSS URL (keep whatever you already use here):
+  // Your Untappd VENUE RSS URL:
   const VENUE_RSS_URL = "https://untappd.com/rss/venue/9899874";
 
   // Refresh how often (ms)
   const REFRESH_MS = 60000; // 60 seconds
 
   // Only show check-ins from the last N hours
-  const MAX_AGE_HOURS = 7000;
+  const MAX_AGE_HOURS = 7000; // ~291.7 days
 
   // ========= ELEMENTS =========
   const tickerTrack = document.getElementById("tickerTrack");
@@ -256,7 +256,7 @@
   // Rating usually appears in RSS description HTML as "Rating: 4.25"
   function parseRating(desc) {
     if (!desc) return "";
-    const text = desc.replace(/<[^>]+>/g, " "); // strip HTML tags
+    const text = desc.replace(/<[^>]+>/g, " "); // strip HTML
     let match = text.match(/Rating:\s*([0-9.]+)/i);
     if (!match) {
       match = text.match(/Rated\s*([0-9.]+)/i);
@@ -264,9 +264,9 @@
     return match ? match[1] : "";
   }
 
-  // Untappd RSS title is like:
+  // Title like:
   // "User is drinking a Beer Name by Brewery Name at Venue Name"
-  // We want: user, beer, brewery — and NEVER show the "at Venue" part.
+  // We want: user, beer, brewery (no "at Venue").
   function parseUntappdTitle(title) {
     let user = "";
     let beer = "";
@@ -274,14 +274,14 @@
 
     if (!title) return { user, beer, brewery };
 
-    // First: strip any trailing " at Something" so venue never appears
+    // Remove trailing " at Venue..." to hide venue name
     let clean = title;
     const atIndex = clean.toLowerCase().lastIndexOf(" at ");
     if (atIndex !== -1) {
       clean = clean.slice(0, atIndex);
     }
 
-    // Now split on "is drinking" or "drank"
+    // Split user vs rest
     let parts = clean.split(" is drinking ");
     if (parts.length === 1) {
       parts = clean.split(" drank ");
@@ -300,7 +300,6 @@
         beer = rest.trim();
       }
     } else {
-      // Fallback: everything is just beer name
       beer = clean.trim();
     }
 
@@ -335,7 +334,7 @@
       const span = document.createElement("span");
       span.className = "ticker-empty";
       span.textContent =
-        "No check-ins in the last 48 hours. Be the first to log a beer at this venue!";
+        "No check-ins in the selected time window. Be the first to log a beer!";
       tickerContent.appendChild(span);
       return;
     }
@@ -352,22 +351,25 @@
       itemEl.className = "ticker-item";
 
       // Final line format:
-      // User · Beer Name (Brewery) · ★4.25 · 3 min ago
+      // User · Beer Name by Brewery · - 4.25 · 3 min ago
+
       const userEl = document.createElement("span");
       userEl.className = "ticker-user";
       userEl.textContent = user || "Someone";
 
       const beerEl = document.createElement("span");
       beerEl.className = "ticker-beer";
-      beerEl.textContent = beer || "A beer";
-
-      const breweryEl = document.createElement("span");
-      breweryEl.className = "ticker-brewery";
-      breweryEl.textContent = brewery ? `(${brewery})` : "";
+      if (beer && brewery) {
+        beerEl.textContent = `${beer} by ${brewery}`;
+      } else if (beer) {
+        beerEl.textContent = beer;
+      } else {
+        beerEl.textContent = "A beer";
+      }
 
       const ratingEl = document.createElement("span");
       ratingEl.className = "ticker-beer";
-      ratingEl.textContent = rating ? `★${rating}` : "";
+      ratingEl.textContent = rating ? `- ${rating}` : "";
 
       const timeEl = document.createElement("span");
       timeEl.className = "ticker-time";
@@ -376,16 +378,13 @@
       // User
       itemEl.appendChild(userEl);
 
-      // · Beer (Brewery)
+      // · Beer by Brewery
       if (beer) {
         addSeparator(itemEl);
         itemEl.appendChild(beerEl);
       }
-      if (brewery) {
-        itemEl.appendChild(breweryEl);
-      }
 
-      // · ★Rating
+      // · - 4.25
       if (rating) {
         addSeparator(itemEl);
         itemEl.appendChild(ratingEl);
@@ -456,6 +455,7 @@
 </script>
 </body>
 </html>
+
 
 
 
