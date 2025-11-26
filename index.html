@@ -218,7 +218,7 @@
   const REFRESH_MS = 60000; // 60 seconds
 
   // Only show check-ins from the last N hours
-  const MAX_AGE_HOURS = 7000; // ~291.7 days
+  const MAX_AGE_HOURS = 7000; // ~292 days
 
   // ========= ELEMENTS =========
   const tickerTrack = document.getElementById("tickerTrack");
@@ -253,20 +253,29 @@
 
   // ========= PARSERS =========
 
-  // Rating usually appears in RSS description HTML as "Rating: 4.25"
-  function parseRating(desc) {
-    if (!desc) return "";
-    const text = desc.replace(/<[^>]+>/g, " "); // strip HTML
-    let match = text.match(/Rating:\s*([0-9.]+)/i);
-    if (!match) {
-      match = text.match(/Rated\s*([0-9.]+)/i);
+  // Rating parser:
+  // Tries multiple patterns and falls back to "first 0.0–5.0-ish number".
+  function parseRating(item) {
+    const raw =
+      (item.description || "") + " " + (item.content || "") + " " + (item.content_html || "");
+    const text = raw.replace(/<[^>]+>/g, " "); // strip HTML tags
+
+    let match =
+      text.match(/Rating:\s*([0-9.]+)/i) ||
+      text.match(/Rated\s*([0-9.]+)/i) ||
+      text.match(/([0-5](?:\.[0-9])?)\s*\/\s*5/i); // like "4.25 / 5"
+
+    if (match) {
+      return match[1];
     }
-    return match ? match[1] : "";
+    return "";
   }
 
-  // Title like:
+  // Title parser:
+  // Expected shapes:
   // "User is drinking a Beer Name by Brewery Name at Venue Name"
-  // We want: user, beer, brewery (no "at Venue").
+  // "User drank Beer Name by Brewery Name at Venue Name"
+  // or sometimes "User is drinking Beer Name (Brewery Name) at Venue Name"
   function parseUntappdTitle(title) {
     let user = "";
     let beer = "";
@@ -274,34 +283,48 @@
 
     if (!title) return { user, beer, brewery };
 
-    // Remove trailing " at Venue..." to hide venue name
-    let clean = title;
-    const atIndex = clean.toLowerCase().lastIndexOf(" at ");
+    // First, remove trailing " at Venue..." so venue name never appears
+    let base = title;
+    const atIndex = base.toLowerCase().lastIndexOf(" at ");
     if (atIndex !== -1) {
-      clean = clean.slice(0, atIndex);
+      base = base.slice(0, atIndex);
     }
 
-    // Split user vs rest
-    let parts = clean.split(" is drinking ");
+    // Separate user from rest
+    let parts = base.split(" is drinking ");
     if (parts.length === 1) {
-      parts = clean.split(" drank ");
+      parts = base.split(" drank ");
     }
 
+    let rest = "";
     if (parts.length > 1) {
       user = parts[0].trim();
-      const rest = parts[1];
-
-      // Split " by " to separate beer and brewery
-      const bySplit = rest.split(" by ");
-      if (bySplit.length > 1) {
-        beer = bySplit[0].replace(/^a\s+/i, "").trim();
-        brewery = bySplit[1].trim();
-      } else {
-        beer = rest.trim();
-      }
+      rest = parts[1].trim();
     } else {
-      beer = clean.trim();
+      rest = base.trim();
     }
+
+    // First attempt: split "beer by brewery"
+    let beerCandidate = rest;
+    let breweryCandidate = "";
+
+    const bySplit = rest.split(" by ");
+    if (bySplit.length > 1) {
+      beerCandidate = bySplit[0].replace(/^a\s+/i, "").trim();
+      breweryCandidate = bySplit.slice(1).join(" by ").trim(); // just in case there's an extra "by"
+    }
+
+    // If no "by" pattern, look for trailing "(Brewery)" at end of beer name
+    if (!breweryCandidate) {
+      const parenMatch = beerCandidate.match(/\(([^)]+)\)\s*$/);
+      if (parenMatch) {
+        breweryCandidate = parenMatch[1].trim();
+        beerCandidate = beerCandidate.replace(/\s*\([^)]+\)\s*$/, "").trim();
+      }
+    }
+
+    beer = beerCandidate;
+    brewery = breweryCandidate;
 
     return { user, beer, brewery };
   }
@@ -327,7 +350,7 @@
       return;
     }
 
-    // Filter to only items within last MAX_AGE_HOURS
+    // Only keep items within MAX_AGE_HOURS
     const recentItems = items.filter((item) => isRecentEnough(item.pubDate));
 
     if (!recentItems.length) {
@@ -344,14 +367,14 @@
     for (let i = 0; i < maxItems; i++) {
       const item = recentItems[i];
       const { user, beer, brewery } = parseUntappdTitle(item.title);
-      const rating = parseRating(item.description);
+      const rating = parseRating(item);
       const time = timeAgo(item.pubDate);
 
       const itemEl = document.createElement("span");
       itemEl.className = "ticker-item";
 
-      // Final line format:
-      // User · Beer Name by Brewery · - 4.25 · 3 min ago
+      // Format:
+      // User · Beer Name by Brewery Name · - 4.25 · 3 min ago
 
       const userEl = document.createElement("span");
       userEl.className = "ticker-user";
@@ -359,6 +382,7 @@
 
       const beerEl = document.createElement("span");
       beerEl.className = "ticker-beer";
+
       if (beer && brewery) {
         beerEl.textContent = `${beer} by ${brewery}`;
       } else if (beer) {
@@ -375,6 +399,7 @@
       timeEl.className = "ticker-time";
       timeEl.textContent = time || "";
 
+      // Build line:
       // User
       itemEl.appendChild(userEl);
 
@@ -453,8 +478,10 @@
 
   document.addEventListener("DOMContentLoaded", startAutoRefresh);
 </script>
+
 </body>
 </html>
+
 
 
 
