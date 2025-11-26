@@ -210,15 +210,17 @@
   </div>
 
   <script>
-    // ========= CONFIG =========
-    // Put your Untappd VENUE RSS URL here:
-    // e.g. "https://untappd.com/v/funcleson-brew-works-home-bar/rss"
-    const VENUE_RSS_URL = "https://untappd.com/rss/venue/9899874";
+  // ========= CONFIG =========
+  // Your Untappd VENUE RSS URL:
+  const VENUE_RSS_URL = "https://untappd.com/rss/venue/9899874";
 
-    // How often to refresh (ms)
-    const REFRESH_MS = 30000;
+  // How often to refresh (ms)
+  const REFRESH_MS = 60000; // 60 seconds
 
-     // ========= ELEMENTS =========
+  // Max age of check-ins to display (in hours)
+  const MAX_AGE_HOURS = 7000;
+
+  // ========= ELEMENTS =========
   const tickerTrack = document.getElementById("tickerTrack");
   const tickerContent = document.getElementById("tickerContent");
   const statusText = document.getElementById("statusText");
@@ -240,25 +242,41 @@
     return days + " day" + (days !== 1 ? "s" : "") + " ago";
   }
 
+  function isRecentEnough(dateString) {
+    const then = new Date(dateString);
+    if (isNaN(then)) return false;
+    const now = new Date();
+    const diffMs = now - then;
+    const hours = diffMs / (1000 * 60 * 60);
+    return hours <= MAX_AGE_HOURS;
+  }
+
   // Extract rating from Untappd RSS description (HTML)
-  // Example: <p>Rating: 4.25</p>
+  // Typically includes something like "<b>Rating:</b> 4.25"
   function parseRating(desc) {
     if (!desc) return "";
-    const match = desc.match(/Rating:\s*([0-9.]+)/i);
+    // Remove HTML tags to make it easier
+    const text = desc.replace(/<[^>]+>/g, " ");
+    const match = text.match(/Rating:\s*([0-9.]+)/i);
     return match ? match[1] : "";
   }
 
   // Untappd RSS title is usually:
-  // "User is drinking a Beer Name by Brewery Name at Venue"
+  // "User is drinking a Beer Name by Brewery Name at Venue Name"
   function parseUntappdTitle(title) {
     let user = "";
     let beer = "";
     let brewery = "";
 
+    if (!title) {
+      return { user, beer, brewery };
+    }
+
     let userSplit = title.split(" is drinking ");
     if (userSplit.length === 1) {
       userSplit = title.split(" drank ");
     }
+
     if (userSplit.length > 1) {
       user = userSplit[0].trim();
       const rest = userSplit[1];
@@ -266,7 +284,10 @@
       const bySplit = rest.split(" by ");
       if (bySplit.length > 1) {
         beer = bySplit[0].replace(/^a\s+/i, "").trim();
-        const atSplit = bySplit[1].split(" at ");
+        let breweryPart = bySplit[1];
+
+        // Remove " at Venue..." completely so nothing venue-related shows
+        const atSplit = breweryPart.split(" at ");
         brewery = atSplit[0].trim();
       } else {
         beer = rest.trim();
@@ -278,6 +299,13 @@
     return { user, beer, brewery };
   }
 
+  function addSeparator(parent) {
+    const dot = document.createElement("span");
+    dot.className = "ticker-separator";
+    dot.textContent = "·";
+    parent.appendChild(dot);
+  }
+
   function buildTicker(items) {
     tickerContent.innerHTML = "";
 
@@ -285,15 +313,27 @@
       const span = document.createElement("span");
       span.className = "ticker-empty";
       span.textContent =
-        "No recent check-ins. Be the first to log a beer at this venue!";
+        "No recent check-ins in the last 48 hours. Be the first to log a beer at this venue!";
       tickerContent.appendChild(span);
       return;
     }
 
-    const maxItems = Math.min(items.length, 10);
+    // Filter to items within last MAX_AGE_HOURS
+    const recentItems = items.filter((item) => isRecentEnough(item.pubDate));
+
+    if (!recentItems.length) {
+      const span = document.createElement("span");
+      span.className = "ticker-empty";
+      span.textContent =
+        "No check-ins in the last 48 hours. Be the first to log a beer at this venue!";
+      tickerContent.appendChild(span);
+      return;
+    }
+
+    const maxItems = Math.min(recentItems.length, 10);
 
     for (let i = 0; i < maxItems; i++) {
-      const item = items[i];
+      const item = recentItems[i];
       const { user, beer, brewery } = parseUntappdTitle(item.title);
       const rating = parseRating(item.description);
       const time = timeAgo(item.pubDate);
@@ -301,8 +341,8 @@
       const itemEl = document.createElement("span");
       itemEl.className = "ticker-item";
 
-      // Build Untappd-style line:
-      // User · Beer Name (Brewery) · ★Rating · 3 min ago
+      // Final format:
+      // User · Beer Name (Brewery) · ★4.25 · 3 min ago
 
       const userEl = document.createElement("span");
       userEl.className = "ticker-user";
@@ -318,14 +358,13 @@
 
       const ratingEl = document.createElement("span");
       ratingEl.className = "ticker-beer";
-      ratingEl.textContent =
-        rating !== "" ? `★${rating}` : "";
+      ratingEl.textContent = rating ? `★${rating}` : "";
 
       const timeEl = document.createElement("span");
       timeEl.className = "ticker-time";
-      timeEl.textContent = time ? `${time}` : "";
+      timeEl.textContent = time || "";
 
-      // Append in Untappd-like style
+      // Build the line
       itemEl.appendChild(userEl);
 
       if (beer) {
@@ -334,7 +373,7 @@
       }
 
       if (brewery) {
-        itemEl.appendChild(breweryEl);
+        itemEl.appendChild(breweryEl); // brewery already has no "at venue"
       }
 
       if (rating) {
@@ -364,15 +403,8 @@
     tickerTrack.appendChild(clone);
   }
 
-  function addSeparator(parent) {
-    const dot = document.createElement("span");
-    dot.className = "ticker-separator";
-    dot.textContent = "·";
-    parent.appendChild(dot);
-  }
-
   async function fetchCheckins() {
-    if (!VENUE_RSS_URL || VENUE_RSS_URL.includes("YOUR-VENUE-SLUG-HERE")) {
+    if (!VENUE_RSS_URL) {
       statusText.textContent = "Configure VENUE_RSS_URL in the code.";
       return;
     }
@@ -411,6 +443,7 @@
 </script>
 </body>
 </html>
+
 
 
 
